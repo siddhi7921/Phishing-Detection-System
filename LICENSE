@@ -1,3 +1,4 @@
+"""
 MIT License
 
 Copyright (c) 2025 Siddhinath Chakraborty
@@ -11,11 +12,83 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
+"""
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+# -----------------------------
+# Phishing Detection System
+# -----------------------------
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+# -----------------------------
+# Load datasets
+# -----------------------------
+phishing = pd.read_csv("../data/phishing_urls.csv")   # phishing URLs dataset
+legit = pd.read_csv("../data/legitimate_urls.csv")   # legitimate URLs dataset
+
+# Add labels
+phishing['label'] = 1
+legit['label'] = 0
+
+# Combine datasets
+data = pd.concat([phishing, legit], ignore_index=True)
+
+# -----------------------------
+# Feature Extraction
+# -----------------------------
+def extract_features(url):
+    features = {}
+    features['url_length'] = len(url)
+    features['has_at'] = 1 if '@' in url else 0
+    features['has_dash'] = 1 if '-' in url else 0
+    features['has_https'] = 1 if url.startswith('https') else 0
+    features['num_digits'] = sum(c.isdigit() for c in url)
+    return features
+
+# Apply feature extraction
+feature_list = data['url'].apply(extract_features)
+X = pd.DataFrame(feature_list.tolist())
+y = data['label']
+
+# -----------------------------
+# Split data
+# -----------------------------
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# -----------------------------
+# Train model
+# -----------------------------
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# -----------------------------
+# Evaluate model
+# -----------------------------
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Model Accuracy: {accuracy*100:.2f}%")
+
+# -----------------------------
+# Test new URLs
+# -----------------------------
+def predict_url(url):
+    features = extract_features(url)
+    df = pd.DataFrame([features])
+    pred = model.predict(df)[0]
+    return "Phishing" if pred == 1 else "Legitimate"
+
+# Example test
+test_urls = [
+    "http://secure-login.com",
+    "https://www.google.com",
+    "http://paypal.verify-user.com"
+]
+
+for url in test_urls:
+    print(f"{url} --> {predict_url(url)}")
+
